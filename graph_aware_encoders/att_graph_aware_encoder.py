@@ -177,7 +177,7 @@ class MultiBlockAttention(nn.Module):
         n_att_blocks (int): Number of attention blocks to stack
     """
     
-    def __init__(self, head_size: int, n_heads: int, out_dim: int, n_att_blocks: int):
+    def __init__(self, head_size: int, n_heads: int, n_att_blocks: int):
         super(MultiBlockAttention, self).__init__()
         embed_dim = n_heads * head_size
         
@@ -186,7 +186,7 @@ class MultiBlockAttention(nn.Module):
             for _ in range(n_att_blocks)
         ])
         self.ln = nn.LayerNorm(embed_dim)
-        self.head = nn.Linear(embed_dim, out_dim)
+        self.head = nn.Linear(embed_dim, embed_dim)
     
     def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """
@@ -197,7 +197,7 @@ class MultiBlockAttention(nn.Module):
             mask (torch.Tensor): Attention mask of shape (G+T, G+T)
         
         Returns:
-            torch.Tensor: Output of shape (B, G+T, out_dim)
+            torch.Tensor: Output of shape (B, G+T, n_heads*head_size)
         """
         # Apply attention blocks sequentially
         for block in self.att_blocks:
@@ -221,9 +221,9 @@ class AttGlobalAggregation(nn.Module):
         out_dim (int): Dimension of node embeddings to aggregate
     """
     
-    def __init__(self, out_dim: int):
+    def __init__(self, emb_dim: int):
         super(AttGlobalAggregation, self).__init__()
-        self.attention_layer = nn.Linear(out_dim, 1)
+        self.attention_layer = nn.Linear(emb_dim, 1)
     
     def forward(self, node_embeddings: torch.Tensor) -> torch.Tensor:
         """
@@ -273,7 +273,7 @@ class GraphAwareEncoder(nn.Module):
         >>> encoder = GraphAwareEncoder(
         ...     n_genes=1000, n_tfs=100,
         ...     head_size=16, n_heads=4,
-        ...     out_dim=64, n_att_blocks=2
+        ...     n_att_blocks=2
         ... )
         >>> X = torch.randn(32, 1000, 1)  # 32 cells, 1000 genes
         >>> mask = create_mask_from_dorothea(...)  # (1100, 1100)
@@ -286,13 +286,11 @@ class GraphAwareEncoder(nn.Module):
         n_tfs: int,
         head_size: int,
         n_heads: int,
-        out_dim: int,
         n_att_blocks: int
     ):
         super(GraphAwareEncoder, self).__init__()
         
         self.n_genes = n_genes
-        self.n_tfs = n_tfs
         self.n_nodes = n_genes + n_tfs
         
         embed_dim = n_heads * head_size
@@ -305,24 +303,25 @@ class GraphAwareEncoder(nn.Module):
         
         # Multi-block attention
         self.multi_block_att = MultiBlockAttention(
-            head_size, n_heads, out_dim, n_att_blocks
+            head_size, n_heads, n_att_blocks
         )
         
         # Global aggregation
-        self.global_agg = AttGlobalAggregation(out_dim)
+        self.global_agg = AttGlobalAggregation(embed_dim)
     
     def forward(self, X: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """
         Forward pass from gene expression to cell embedding.
         
         Args:
-            X (torch.Tensor): Gene expression values of shape (B, G, 1)
+            X (torch.Tensor): Gene expression values of shape (B, G)
             mask (torch.Tensor): Graph structure mask of shape (G+T, G+T)
                                 Float weights for edges, -inf for no edges
         
         Returns:
             torch.Tensor: Cell embeddings of shape (B, out_dim)
         """
+        X = X.unsqueeze(-1) # B x G x 1
         B = X.shape[0]
         
         # Get embedding table
@@ -339,9 +338,9 @@ class GraphAwareEncoder(nn.Module):
         all_emb = torch.cat([gene_emb, tf_emb], dim=1)  # (B, G+T, embed_dim)
         
         # Apply attention blocks with graph structure
-        node_features = self.multi_block_att(all_emb, mask)  # (B, G+T, out_dim)
+        node_features = self.multi_block_att(all_emb, mask)  # (B, G+T, embed_dim)
         
         # Global aggregation to cell-level embedding
-        cell_emb = self.global_agg(node_features)  # (B, out_dim)
+        cell_emb = self.global_agg(node_features)  # (B, embed_dim)
         
         return cell_emb

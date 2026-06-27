@@ -26,21 +26,18 @@ class MLPEncoder(nn.Module):
         >>> output = encoder(x)     # shape: (10, 32)
     """
     
-    def __init__(self, in_dim:int, hidden_dim: int, n_layers: int, dropout_rate: float = 0.1):
+    def __init__(self, in_dim:int, hidden_dim: int, emb_dim: int, n_layers: int, dropout_rate: float = 0.1):
         super(MLPEncoder, self).__init__()
         
         layers = []
-        input_dim = in_dim
-        
-        for i in range(n_layers+1):
-            layers.append(nn.Linear(input_dim, hidden_dim))
-            
-            if i < n_layers:
-                layers.append(nn.GELU())
-                layers.append(nn.Dropout(p=dropout_rate))
-            
-            input_dim = hidden_dim
-        
+        dims = [in_dim] + [hidden_dim] * n_layers + [emb_dim]
+
+        for i, dim in enumerate(dims[:-1]):
+            if i < len(dims) - 2:
+                layers += [nn.Linear(dim, dims[i+1]), nn.GELU(), nn.Dropout(p=dropout_rate)]
+            else:
+                layers += [nn.Linear(dim, dims[i+1])]
+
         self.network = nn.Sequential(*layers)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:

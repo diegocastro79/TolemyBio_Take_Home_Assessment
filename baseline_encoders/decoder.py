@@ -15,7 +15,7 @@ class Decoder(nn.Module):
     """
     
     def __init__(self, in_dim: int, hidden_dim: int, out_dim: int):
-        super(Decoder, self).__init__()
+        super().__init__()
         
         self.in_dim = in_dim
         self.hidden_dim = hidden_dim
@@ -23,7 +23,8 @@ class Decoder(nn.Module):
         self.network = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, out_dim)
+            nn.Linear(hidden_dim, out_dim),
+            nn.Softplus(), # to make sure a positive outcome
         )
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -37,3 +38,16 @@ class Decoder(nn.Module):
             torch.Tensor: Output tensor of shape (batch_size, num_cells, out_dim)
         """
         return self.network(x)
+
+
+class ProbLayer(nn.Module):
+    def __init__(self, emb_dim: int):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(emb_dim, 1),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x).view(-1)
+

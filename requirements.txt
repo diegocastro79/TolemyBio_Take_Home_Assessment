@@ -1,3 +1,5 @@
 cellxgene-census
 decoupler
 torch
+scanpy
+scikit-misc
