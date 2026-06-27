@@ -21,3 +21,4 @@ ISTRUNCTIONS TO RUN THE CODE
 - The training produces validation and training loss plots that are saved in `tasks/plots`.
 - The comparison produces displays of confusion matrices and ROC curve plots, both saved in `tasks/plots`.
 - Additionally, a statistics summary is printed showing accuracy and F1 scores for both prediction approaches.
+- OBS! Notice that the parent folder `plots/` is automatically generated if it does not exist.

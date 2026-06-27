@@ -16,6 +16,7 @@ from models.models import GraphModel, BaselineModel
 PLOTS_PATH = Path("plots")
 
 
+
 def encoder_decoder_loss(x_in: torch.Tensor, x_hat: torch.Tensor) -> torch.Tensor:
     return F.mse_loss(x_in, x_hat)
 
@@ -34,6 +35,8 @@ class TrainGraphEncoder(nn.Module):
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.mask = architect_params['mask']
         self.x_train, self.y_train, self.x_val, self.y_val = data
+        # Create all parent directories if they don't exist
+        PLOTS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
     def gradient_step(self, x: torch.Tensor, y: torch.Tensor) -> float:

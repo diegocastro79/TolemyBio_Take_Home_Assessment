@@ -1,4 +1,3 @@
-from Data.get_trainable_data import get_trainable_data
 import random
 from trainer.trainer import TrainGraphEncoder, TrainBaselineEncoder, compare_models
 import pickle
